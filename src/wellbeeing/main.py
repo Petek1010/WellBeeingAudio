@@ -9,7 +9,7 @@ import librosa.display
 import IPython.display as ipd
 from itertools import cycle
 from pathlib import Path
-import os
+import sys
 
 # Set Plotting Theme
 sns.set_theme(style="white", palette=None)
@@ -201,21 +201,28 @@ def audio_feature_extract(y, sr, recording_id):
 
 if __name__ == "__main__":
     # Audio processing and extracting features
-    y = get_data("data/raw/sound/2_2025_08_08-15_28_39")
+    #y = get_data("/Volumes/Seagate Exp/IJSE9_Ext/Datasets/WellBeeing/Veterian_Panj_1-ID3/sound-part1/ONLINE_Fri_Apr_18_11-47-30_2025")   
     sr = 16000
 
-    f = audio_feature_extract(y,sr, "2_2025_08_08-15_28_39")
-    print("Features ", f)
+    #f = audio_feature_extract(y,sr, )
+    #print("Features ", f)
 
-    mel_spectrogram(y, sr)
-    plot_mel(y,sr)
+    #mel_spectrogram(y, sr)
+    #plot_mel(y,sr)
 
+   
     # Generelized approach for all samples
-    audio_folder = Path("data/raw/sound")
-    
+    audio_folder = Path("/Volumes/Seagate Exp/IJSE9_Ext/Datasets/WellBeeing/Veterina_Panj_1-ID3/sound-part1")
+    print("Succesfully opened Datasets folder")
     all_features = []
 
     for file in audio_folder.iterdir():
+
+        if not file.is_file():
+            continue
+        if file.name.startswith("."):
+            continue
+        
         y = get_data(file)
         features = audio_feature_extract(y, 16000, file.name)
         all_features.append(features)
