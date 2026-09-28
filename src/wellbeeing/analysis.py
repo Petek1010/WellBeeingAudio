@@ -4,12 +4,15 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans, DBSCAN
-from sklearn.ensemble import IsolationForest
-import sys
+
 
 import plots
 
 def load_features(csv_path):
+    """
+    Load audio features from CSV file.
+    """
+    
     df = pd.read_csv(csv_path)
 
     print("Dataset shape:", df.shape)
@@ -29,7 +32,9 @@ def load_features(csv_path):
     return X
 
 def add_datetime(df):
-
+    """
+    Add datetime, hour, day_of_week and date columns to the dataframe based on recording_id
+    """
     df = df.copy()
 
     df["datetime"] = pd.to_datetime(
@@ -111,25 +116,15 @@ def dbscan_clustering(X, eps=1.0, min_samples=5):
     )
 
     labels = model.fit_predict(X)
+    n_noise = np.sum(labels == -1)
+    n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
 
     print("DBSCAN labels:")
     print(np.unique(labels, return_counts=True))
+    print(f"Number of clusters: {n_clusters}")
+    print(f"Number of noise points: {n_noise}")
 
     return labels
-
-def detect_anomalies(X, contamination=0.05):
-
-    model = IsolationForest(
-        contamination=contamination,
-        random_state=42
-    )
-
-    labels = model.fit_predict(X)
-
-    print("Number of anomalies:", np.sum(labels == -1))
-
-    return labels
-
 
 
 if __name__ == "__main__":
@@ -151,24 +146,35 @@ if __name__ == "__main__":
 
     # PCA calculation
     components = run_pca(features_scaled)
-    clusters = kmeans_clustering(
-    features_scaled,
-    n_clusters=3
-    )   
+    clusters = kmeans_clustering(features_scaled, n_clusters=3)  
+    db_clusters = dbscan_clustering(features_scaled, eps=5.2, min_samples=5) 
 
     df["cluster"] = clusters
+    df["db_cluster"] = db_clusters
 
-    anomaly_labels = detect_anomalies(features_scaled)
-    df["anomaly"] = anomaly_labels
-
+ 
     # Plots
+    #plots.plot_day_activity(df, date="2025-06-12", feature="rms_mean")
+    #plots.plot_average_day(df, feature="rms_mean")
+    #plots.plot_average_day(df, feature="zcr_mean")
+    #plots.plot_average_day(df, feature="flux_mean")
+    #plots.plot_overall_rms_by_time(df)
+    #plots.plot_median_rms_by_hour(df) 
+    plots.plot_k_distance(features_scaled, min_samples=5) 
+  
 
-    #plots.plot_day(df,"2025-06-22","rms_mean")
-    #plots.plot_average_day(df, "flux_mean")
-    #plots.plot_anomaly_rate_by_hour(df)
-    plots.plot_pca(components, clusters)
 
-    
+
+    # Short explanation of features:
+    # RMS = measure of the average power of the signal, related to loudness
+
+    # zcr = measure of the number of times the signal crosses zero, related
+    # to noisiness. High zcr indicates a noisy signal, while low zcr indicates
+    # a more tonal signal.
+
+    # flux = measure of the change in the spectral content of the signal, 
+    # related to the amount of movement or activity in the signal. High flux
+    # indicates. High flux indicates a signal with rapid changes in frequency content, while low flux indicates a more stable signal.
 
 
     

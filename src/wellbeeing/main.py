@@ -28,10 +28,13 @@ def get_data(file):
     signal = np.fromfile(file, dtype=np.int16)
     y = signal.astype(np.float32)
 
-    # Normalize amplitude [-1, 1] (Max absolute value normalization)
-    y /= np.max(np.abs(y))
+    overall_rms = np.sqrt(np.mean(y**2, dtype=np.float64))
+    raw_peak = np.max(np.abs(y))
 
-    return y
+    # Normalize amplitude [-1, 1] (Max absolute value normalization)
+    y /= raw_peak
+   
+    return y, overall_rms, raw_peak
 
 def play(audio):
     # Plays audio sample
@@ -40,7 +43,7 @@ def play(audio):
     sd.wait()
     print("End of audio sample")
 
-def plot_raw_waveform(y):
+def plot_waveform(y):
     pd.Series(y).plot(
         figsize=(12, 7),             
         lw=1,                       
@@ -50,26 +53,6 @@ def plot_raw_waveform(y):
         ylabel="Amplitude"          
     )
     plt.show()
-
-def plot_trim_waveform(y):
-    """
-    Trim the audio signal to remove silence
-    `y_trim`: Audio data after silence trimming
-    `top_db`: Threshold in decibels for considering a region as silence
-    """
-    y_trim, _ = librosa.effects.trim(y, top_db=35)
-
-    # Plot the trimmed audio waveform
-    pd.Series(y_trim).plot(
-        figsize=(12, 7),                
-        lw=1,                          
-        title="Trimmed Audio Waveform (Silence Removed)",  
-        color=color_pal[1],            
-        xlabel="Sample Index (Trimmed)", 
-        ylabel="Amplitude"             
-    )
-    plt.show()
-
 
 def mel_spectrogram(y, sr):
 
@@ -130,10 +113,11 @@ def plot_mel(y,sr):
 
 def spectral_flux(y):
     """
-    Calculation of the Euclidean distance between the two normalised spectra
+    Calculation of the Euclidean distance between the two normalised spectra.
     """
 
     X = np.abs(librosa.stft(y=y))
+
     # Normalise each frame
     X /= np.sum(X, axis=0, keepdims=True) + 1e-10
     diff = np.diff(X, axis=1)
@@ -144,8 +128,11 @@ def spectral_flux(y):
 
 def audio_feature_extract(y, sr, recording_id):
     """ 
-    Feature extraction for audio recordings. Function returns mean and std value of every 
-    feture.
+    Feature extraction for an audio recording.
+
+    Features are calculated over many short-time frames within
+    the recording. The mean and standard deviation of each
+    feature are returned.
 
     Inputs: 
     y - signal
@@ -201,18 +188,11 @@ def audio_feature_extract(y, sr, recording_id):
 
 if __name__ == "__main__":
     # Audio processing and extracting features
-    #y = get_data("/Volumes/Seagate Exp/IJSE9_Ext/Datasets/WellBeeing/Veterian_Panj_1-ID3/sound-part1/ONLINE_Fri_Apr_18_11-47-30_2025")   
-    sr = 16000
+    # Sample rate is 16kHz, 187500 samples which is 11.8 seconds of audio.
 
-    #f = audio_feature_extract(y,sr, )
-    #print("Features ", f)
-
-    #mel_spectrogram(y, sr)
-    #plot_mel(y,sr)
-
-   
-    # Generelized approach for all samples
-    audio_folder = Path("/Volumes/Seagate Exp/IJSE9_Ext/Datasets/WellBeeing/Veterina_Panj_1-ID3/sound-part1")
+    #audio_folder_macbook = Path("/Volumes/Seagate Exp/IJSE9_Ext/Datasets/WellBeeing/Veterina_Panj_1-ID3/sound-part1")
+    audio_folder = Path("data/raw/Veterina_Panj_1-ID3/sound-part1")
+    #audio_folder = Path(r"C:\Users\Uporabnik\IJSE9\Datasets\WellBeeing\sound")
     print("Succesfully opened Datasets folder")
     all_features = []
 
@@ -223,14 +203,17 @@ if __name__ == "__main__":
         if file.name.startswith("."):
             continue
         
-        y = get_data(file)
+        y, overall_rms, raw_peak = get_data(file)
         features = audio_feature_extract(y, 16000, file.name)
+
+        features["overall_rms"] = overall_rms # calculated before normalization
+        features["raw_peak"] = raw_peak
         all_features.append(features)
+
 
     df = pd.DataFrame(all_features)
     print("DATA FRAME:")
     print(df.head())
-    print(df['flux_mean'])
 
     # Save to csv
     df.to_csv("data/processed/audio_features.csv", index=False)
